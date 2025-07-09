@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+/* @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap'); */
+
+@layer base {
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    @apply bg-gray-50 text-gray-900;
+  }
+}
+
+@layer components {
+  .drag-item {
+    @apply cursor-move transition-all duration-200 hover:shadow-md;
+  }
+  
+  .drag-item:hover {
+    @apply transform scale-105;
+  }
+  
+  .drop-zone {
+    @apply border-2 border-dashed border-gray-300 transition-colors duration-200;
+  }
+  
+  .drop-zone.drag-over {
+    @apply border-blue-500 bg-blue-50;
+  }
+  
+  .form-field {
+    @apply relative border-2 border-transparent hover:border-blue-300 transition-colors duration-200 cursor-pointer;
+  }
+  
+  .form-field.selected {
+    @apply border-blue-500 bg-blue-50;
+  }
+  
+  .a4-canvas {
+    @apply bg-white shadow-lg min-h-a4 w-full max-w-a4 mx-auto relative;
+    aspect-ratio: 210/297; /* A4 aspect ratio */
+  }
+  
+  .sidebar-item {
+    @apply flex items-center space-x-3 p-3 bg-white border border-gray-200 rounded-lg cursor-move hover:shadow-md transition-all duration-200 hover:border-blue-300;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-400 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-600;
+}
