@@ -20,37 +20,52 @@ const FormBuilder = () => {
   const [selectedField, setSelectedField] = useState(null);
   const [viewMode, setViewMode] = useState('desktop');
   const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (id) {
+    if (id && id !== 'new') {
       loadForm(id);
     }
   }, [id]);
 
   const loadForm = async (formId) => {
     try {
+      setError(null);
       const form = await formService.getForm(formId);
+      console.log('Loaded form:', form);
       setFormData(form);
     } catch (error) {
       console.error('Error loading form:', error);
+      setError('Failed to load form');
     }
   };
 
   const handleSave = async () => {
     setIsSaving(true);
+    setError(null);
+    
     try {
+      console.log('Saving form data:', formData);
+      
       let savedForm;
       if (formData.id) {
         savedForm = await formService.updateForm(formData.id, formData);
+        console.log('Form updated successfully:', savedForm);
       } else {
         savedForm = await formService.createForm(formData);
+        console.log('Form created successfully:', savedForm);
       }
+      
       setFormData(savedForm);
-      if (!formData.id) {
-        navigate(`/form-builder/${savedForm.id}`);
+      
+      // Navigate to the edit page if this was a new form
+      if (!formData.id && savedForm.id) {
+        navigate(`/form-builder/${savedForm.id}`, { replace: true });
       }
+      
     } catch (error) {
       console.error('Error saving form:', error);
+      setError(`Failed to save form: ${error.message}`);
     } finally {
       setIsSaving(false);
     }
@@ -65,31 +80,65 @@ const FormBuilder = () => {
   };
 
   const handleExportPDF = () => {
-    generatePDF(formData);
+    try {
+      generatePDF(formData);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      setError('Failed to generate PDF');
+    }
   };
 
-  const addField = (fieldType) => {
+  const addField = (newField) => {
+    console.log('Adding field:', newField);
+    
+    setFormData(prev => ({
+      ...prev,
+      fields: [...prev.fields, newField]
+    }));
+    
+    setSelectedField(newField);
+  };
+
+  const addFieldByType = (fieldType) => {
+    const fieldId = `field_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
     const newField = {
-      id: Date.now().toString(),
+      id: fieldId,
       type: fieldType,
       label: `${fieldType.charAt(0).toUpperCase() + fieldType.slice(1)} Field`,
-      placeholder: '',
+      placeholder: getDefaultPlaceholder(fieldType),
       required: false,
       helpText: '',
-      options: fieldType === 'dropdown' || fieldType === 'radio' || fieldType === 'checkbox' 
+      options: ['dropdown', 'radio', 'checkbox'].includes(fieldType) 
         ? ['Option 1', 'Option 2'] : [],
       validation: {},
       position: { x: 50, y: formData.fields.length * 80 + 50 }
     };
 
-    setFormData(prev => ({
-      ...prev,
-      fields: [...prev.fields, newField]
-    }));
-    setSelectedField(newField);
+    addField(newField);
+  };
+
+  const getDefaultPlaceholder = (fieldType) => {
+    const placeholders = {
+      text: 'Enter text here...',
+      email: 'Enter your email address...',
+      number: 'Enter a number...',
+      phone: 'Enter your phone number...',
+      date: '',
+      textarea: 'Enter your message...',
+      file: '',
+      dropdown: '',
+      radio: '',
+      checkbox: '',
+      section: '',
+      page: ''
+    };
+    return placeholders[fieldType] || '';
   };
 
   const updateField = (fieldId, updates) => {
+    console.log('Updating field:', fieldId, updates);
+    
     setFormData(prev => ({
       ...prev,
       fields: prev.fields.map(field => 
@@ -103,6 +152,8 @@ const FormBuilder = () => {
   };
 
   const deleteField = (fieldId) => {
+    console.log('Deleting field:', fieldId);
+    
     setFormData(prev => ({
       ...prev,
       fields: prev.fields.filter(field => field.id !== fieldId)
@@ -124,7 +175,7 @@ const FormBuilder = () => {
       case 'tablet':
         return 'max-w-2xl';
       default:
-        return 'max-w-a4';
+        return 'max-w-4xl';
     }
   };
 
@@ -148,7 +199,7 @@ const FormBuilder = () => {
             rows="2"
           />
         </div>
-        <Sidebar onAddField={addField} />
+        <Sidebar onAddField={addFieldByType} />
       </div>
 
       {/* Main Canvas Area */}
@@ -161,18 +212,21 @@ const FormBuilder = () => {
                 <button
                   onClick={() => setViewMode('desktop')}
                   className={`p-2 rounded ${viewMode === 'desktop' ? 'bg-white shadow-sm' : ''}`}
+                  title="Desktop View"
                 >
                   <Monitor className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => setViewMode('tablet')}
                   className={`p-2 rounded ${viewMode === 'tablet' ? 'bg-white shadow-sm' : ''}`}
+                  title="Tablet View"
                 >
                   <Tablet className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => setViewMode('mobile')}
                   className={`p-2 rounded ${viewMode === 'mobile' ? 'bg-white shadow-sm' : ''}`}
+                  title="Mobile View"
                 >
                   <Smartphone className="h-4 w-4" />
                 </button>
@@ -183,7 +237,7 @@ const FormBuilder = () => {
               <button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
+                className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Save className="h-4 w-4" />
                 <span>{isSaving ? 'Saving...' : 'Save'}</span>
@@ -208,6 +262,17 @@ const FormBuilder = () => {
           </div>
         </div>
 
+        {/* Error Display */}
+        {error && (
+          <div className="bg-red-50 border-l-4 border-red-400 p-4 m-4">
+            <div className="flex">
+              <div className="ml-3">
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Canvas */}
         <div className="flex-1 p-6 overflow-auto">
           <div className={`mx-auto transition-all duration-300 ${getViewportClass()}`}>
@@ -218,6 +283,7 @@ const FormBuilder = () => {
               onUpdateField={updateField}
               onDeleteField={deleteField}
               onMoveField={moveField}
+              onAddField={addField}
               viewMode={viewMode}
             />
           </div>
